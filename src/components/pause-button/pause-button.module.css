@@ -1,0 +1,11 @@
+.pause_button {
+    background-color: transparent;
+    color: rgba(255,255,255,0.8);
+    border: none;
+    display: inline-block;
+    width: 100px;
+  }
+
+.pause_button:hover {
+  color: red
+}
