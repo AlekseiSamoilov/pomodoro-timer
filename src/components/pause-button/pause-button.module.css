@@ -4,8 +4,23 @@
     border: none;
     display: inline-block;
     width: 100px;
+    animation: pulse 2s infinite;
+    cursor: pointer;
+    transition: transform 0.3s ease;
   }
 
-.pause_button:hover {
-  color: red
-}
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  .pause_button:hover {
+    animation: none;
+    transform: scale(1.2);
+  }
