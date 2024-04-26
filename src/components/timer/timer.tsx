@@ -6,10 +6,12 @@ import style from "./timer.module.css";
 import PauseButton from "../pause-button/pause-button";
 import SettingsButton from "../settings-button/settings-button";
 import SettingsContext from "../settings-context/SettingsContext";
+import Progress from "../progress/progress";
 
 function Timer() {
   const { showSettings, setShowSettings, workMinutes, breakMinutes } =
     useContext(SettingsContext);
+  const [pomodoroCount, setPomodoroCount] = useState(0);
   const [isPaused, setIsPaused] = useState<boolean>(true);
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [mode, setMode] = useState<"work" | "break" | "pause">("work");
@@ -22,6 +24,9 @@ function Timer() {
     secondsLeftRef.current--;
     setSecondsLeft(secondsLeftRef.current);
   }
+  const handlePomodoroComplete = () => {
+    setPomodoroCount((prev) => prev + 1);
+  };
 
   function switchMode() {
     const nextMode = modeRef.current === "work" ? "break" : "work";
@@ -30,6 +35,10 @@ function Timer() {
     modeRef.current = nextMode;
     setSecondsLeft(nextSeconds);
     secondsLeftRef.current = nextSeconds;
+
+    if (modeRef.current === "break") {
+      handlePomodoroComplete();
+    }
   }
 
   function initTimer() {
@@ -49,7 +58,7 @@ function Timer() {
       }
 
       tick();
-    }, 1000);
+    }, 50);
     return () => clearInterval(interval);
   }, [showSettings, workMinutes, breakMinutes]);
 
@@ -95,6 +104,7 @@ function Timer() {
       <div className={style.settings_button_container}>
         <SettingsButton onClick={() => setShowSettings(true)} />
       </div>
+      <Progress count={pomodoroCount} />
     </div>
   );
 }

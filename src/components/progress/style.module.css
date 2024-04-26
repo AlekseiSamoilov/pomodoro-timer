@@ -1,0 +1,8 @@
+.cells {
+    display: flex;
+    width: 300px;
+    height: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 30px;
+}
