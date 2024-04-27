@@ -15,6 +15,11 @@ function Timer() {
   const [isPaused, setIsPaused] = useState<boolean>(true);
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [mode, setMode] = useState<"work" | "break" | "pause">("work");
+  const [pomodoroSessions, setPomodoroSessions] = useState<
+    ("work" | "break")[]
+  >([]);
+
+  const audioRef = useRef(new Audio("/alarm.mp3"));
 
   const secondsLeftRef = useRef(secondsLeft);
   const isPausedRef = useRef(isPaused);
@@ -24,8 +29,15 @@ function Timer() {
     secondsLeftRef.current--;
     setSecondsLeft(secondsLeftRef.current);
   }
-  const handlePomodoroComplete = () => {
-    setPomodoroCount((prev) => prev + 1);
+
+  useEffect(() => {
+    if (secondsLeft === 0 && !isPaused) {
+      audioRef.current.play();
+    }
+  }, [secondsLeft, isPaused]);
+
+  const handlePomodoroComplete = (type: string) => {
+    setPomodoroSessions((prev: any) => [...prev, type]);
   };
 
   function switchMode() {
@@ -37,7 +49,9 @@ function Timer() {
     secondsLeftRef.current = nextSeconds;
 
     if (modeRef.current === "break") {
-      handlePomodoroComplete();
+      handlePomodoroComplete("work");
+    } else {
+      handlePomodoroComplete("break");
     }
   }
 
@@ -101,7 +115,7 @@ function Timer() {
           />
         )}
       </div>
-      <Progress count={pomodoroCount} />
+      <Progress sessions={pomodoroSessions} />
       <div className={style.settings_button_container}>
         <SettingsButton onClick={() => setShowSettings(true)} />
       </div>
