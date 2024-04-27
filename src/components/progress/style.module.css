@@ -4,5 +4,12 @@
     height: 100%;
     flex-wrap: wrap;
     justify-content: center;
-    margin: 30px;
+    margin: 15px;
 }
+
+.cell {
+    width: 20px;
+    height: 20px;
+    margin: 2px;
+    border-radius: 5px;
+  }

@@ -19,8 +19,9 @@
     100% {
       transform: scale(1);
     }
-  }
+  } 
   .pause_button:hover {
     animation: none;
     transform: scale(1.2);
   }
+

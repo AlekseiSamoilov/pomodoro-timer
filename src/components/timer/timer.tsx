@@ -79,9 +79,9 @@ function Timer() {
         text={`${minutes}:${secondsFormatted}`}
         styles={buildStyles({
           textColor: "#fff",
-          pathColor: mode === "work" ? "red" : "green",
+          pathColor: mode === "work" ? "#ed4141" : "#40c463",
           trailColor: "rgba(255,255,255,.2)",
-          backgroundColor: "green",
+          backgroundColor: "#40c463",
         })}
       />
       <div className={style.button_container}>
@@ -101,10 +101,10 @@ function Timer() {
           />
         )}
       </div>
+      <Progress count={pomodoroCount} />
       <div className={style.settings_button_container}>
         <SettingsButton onClick={() => setShowSettings(true)} />
       </div>
-      <Progress count={pomodoroCount} />
     </div>
   );
 }
