@@ -30,7 +30,9 @@ function Timer() {
     if (startTimeRef.current) {
       const now = new Date().getTime();
       const elapsed = (now - startTimeRef.current.getTime()) / 1000;
-      const newSecondsLeft = totalSeconds - Math.floor(elapsed);
+      const currentTotalSeconds =
+        modeRef.current === "work" ? workMinutes * 60 : breakMinutes * 60;
+      const newSecondsLeft = currentTotalSeconds - Math.floor(elapsed);
 
       if (newSecondsLeft <= 0) {
         audioRef.current.play();
@@ -43,7 +45,11 @@ function Timer() {
   }
 
   function startTimer() {
-    startTimeRef.current = new Date();
+    if (!startTimeRef.current) {
+      startTimeRef.current = new Date(
+        new Date().getTime() - (totalSeconds - secondsLeft) * 1000
+      );
+    }
     setIsPaused(false);
     isPausedRef.current = false;
     setTimeout(tick, 1000);
@@ -90,15 +96,20 @@ function Timer() {
   }
 
   function initTimer() {
-    const initialSeconds = workMinutes * 60;
+    const initialSeconds = (mode === "work" ? workMinutes : breakMinutes) * 60;
     setSecondsLeft(initialSeconds);
     secondsLeftRef.current = initialSeconds;
+    startTimeRef.current = new Date();
   }
 
   useEffect(() => {
     initTimer();
-    startTimeRef.current = new Date();
-  }, [showSettings, workMinutes, breakMinutes]);
+  }, [showSettings, workMinutes, breakMinutes, mode]);
+
+  // useEffect(() => {
+  //   initTimer();
+  //   startTimeRef.current = new Date();
+  // }, [showSettings, workMinutes, breakMinutes]);
 
   const totalSeconds = mode === "work" ? workMinutes * 60 : breakMinutes * 60;
   const percantage = Math.round((secondsLeft / totalSeconds) * 100);
