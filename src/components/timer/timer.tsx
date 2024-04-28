@@ -11,13 +11,14 @@ import Progress from "../progress/progress";
 function Timer() {
   const { showSettings, setShowSettings, workMinutes, breakMinutes } =
     useContext(SettingsContext);
-  const [pomodoroCount, setPomodoroCount] = useState(0);
   const [isPaused, setIsPaused] = useState<boolean>(true);
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [mode, setMode] = useState<"work" | "break" | "pause">("work");
   const [pomodoroSessions, setPomodoroSessions] = useState<
     ("work" | "break")[]
   >([]);
+
+  const startTimeRef = useRef<Date | null>(null);
 
   const audioRef = useRef(new Audio("/alarm.mp3"));
 
@@ -26,9 +27,40 @@ function Timer() {
   const modeRef = useRef(mode);
 
   function tick() {
-    secondsLeftRef.current--;
-    setSecondsLeft(secondsLeftRef.current);
+    if (startTimeRef.current) {
+      const now = new Date().getTime();
+      const elapsed = (now - startTimeRef.current.getTime()) / 1000;
+      const newSecondsLeft = totalSeconds - Math.floor(elapsed);
+
+      if (newSecondsLeft <= 0) {
+        audioRef.current.play();
+        switchMode();
+      } else {
+        setSecondsLeft(newSecondsLeft);
+        setTimeout(tick, 1000 - (elapsed % 1) * 1000);
+      }
+    }
   }
+
+  function startTimer() {
+    startTimeRef.current = new Date();
+    setIsPaused(false);
+    isPausedRef.current = false;
+    setTimeout(tick, 1000);
+  }
+
+  function pauseTimer() {
+    setIsPaused(true);
+    isPausedRef.current = true;
+    startTimeRef.current = null;
+  }
+
+  useEffect(() => {
+    if (!isPaused) {
+      const interval = setInterval(tick, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isPaused]);
 
   useEffect(() => {
     if (secondsLeft === 0 && !isPaused) {
@@ -42,13 +74,15 @@ function Timer() {
 
   function switchMode() {
     const nextMode = modeRef.current === "work" ? "break" : "work";
-    const nextSeconds = (nextMode === "work" ? workMinutes : breakMinutes) * 60;
     setMode(nextMode);
     modeRef.current = nextMode;
+
+    const nextSeconds = (nextMode === "work" ? workMinutes : breakMinutes) * 60;
     setSecondsLeft(nextSeconds);
     secondsLeftRef.current = nextSeconds;
+    startTimeRef.current = new Date();
 
-    if (modeRef.current === "break") {
+    if (nextMode === "break") {
       handlePomodoroComplete("work");
     } else {
       handlePomodoroComplete("break");
@@ -63,22 +97,8 @@ function Timer() {
 
   useEffect(() => {
     initTimer();
-    const interval = setInterval(() => {
-      if (isPausedRef.current) {
-        return;
-      }
-      if (secondsLeftRef.current === 0) {
-        return switchMode();
-      }
-
-      tick();
-    }, 1000);
-    return () => clearInterval(interval);
+    startTimeRef.current = new Date();
   }, [showSettings, workMinutes, breakMinutes]);
-
-  useEffect(() => {
-    isPausedRef.current = isPaused;
-  }, [isPaused]);
 
   const totalSeconds = mode === "work" ? workMinutes * 60 : breakMinutes * 60;
   const percantage = Math.round((secondsLeft / totalSeconds) * 100);
@@ -100,19 +120,9 @@ function Timer() {
       />
       <div className={style.button_container}>
         {isPaused ? (
-          <PlayButton
-            onClick={() => {
-              setIsPaused(false);
-              isPausedRef.current = false;
-            }}
-          />
+          <PlayButton onClick={startTimer} />
         ) : (
-          <PauseButton
-            onClick={() => {
-              setIsPaused(true);
-              isPausedRef.current = true;
-            }}
-          />
+          <PauseButton onClick={pauseTimer} />
         )}
       </div>
       <Progress sessions={pomodoroSessions} />
