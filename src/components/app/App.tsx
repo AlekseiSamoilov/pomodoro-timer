@@ -3,7 +3,6 @@ import style from "./app.module.css";
 import Timer from "../timer/timer";
 import Settings from "../settings/settings";
 import SettingsContext from "../settings-context/SettingsContext";
-import Progress from "../progress/progress";
 
 const App = () => {
   const [showSettings, setShowSettings] = useState<boolean>(false);
