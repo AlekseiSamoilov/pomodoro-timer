@@ -20,7 +20,7 @@ function Timer() {
 
   const startTimeRef = useRef<Date | null>(null);
 
-  const audioRef = useRef(new Audio("/alarm.mp3"));
+  const audioRef = useRef(new Audio(process.env.PUBLIC_URL + "/alarm.mp3"));
 
   const secondsLeftRef = useRef(secondsLeft);
   const isPausedRef = useRef(isPaused);
