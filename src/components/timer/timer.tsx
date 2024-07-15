@@ -18,7 +18,9 @@ function Timer() {
     ("work" | "break")[]
   >([]);
 
-  const startTimeRef = useRef<Date | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const endTimeRef = useRef<number | null>(null);
+  const rafIdRef = useRef<number | null>(null);
 
   const audioRef = useRef(new Audio(process.env.PUBLIC_URL + "/alarm.mp3"));
 
@@ -27,91 +29,104 @@ function Timer() {
   const modeRef = useRef(mode);
 
   function tick() {
-    if (startTimeRef.current) {
-      const now = new Date().getTime();
-      const elapsed = (now - startTimeRef.current.getTime()) / 1000;
-      const currentTotalSeconds =
-        modeRef.current === "work" ? workMinutes * 60 : breakMinutes * 60;
-      const newSecondsLeft = currentTotalSeconds - Math.floor(elapsed);
-
-      if (newSecondsLeft <= 0) {
-        audioRef.current.play();
-        switchMode();
-      } else {
-        setSecondsLeft(newSecondsLeft);
-        setTimeout(tick, 1000 - (elapsed % 1) * 1000);
-      }
+    if (startTimeRef.current === null || endTimeRef.current === null) return;
+  
+    const now = Date.now();
+    const newSecondsLeft = Math.max(0, Math.round((endTimeRef.current - now) / 1000));
+  
+    if (newSecondsLeft !== secondsLeftRef.current) {
+      setSecondsLeft(newSecondsLeft);
+      secondsLeftRef.current = newSecondsLeft;
+    }
+  
+    if (newSecondsLeft > 0 && !isPausedRef.current) {
+      rafIdRef.current = requestAnimationFrame(tick);
+    } else if (newSecondsLeft === 0) {
+      audioRef.current.play();
+      switchMode();
     }
   }
+  
+function startTimer() {
+  const now = Date.now();
+  startTimeRef.current = now;
+  endTimeRef.current = now + secondsLeftRef.current * 1000;
 
-  function startTimer() {
-    if (!startTimeRef.current) {
-      startTimeRef.current = new Date(
-        new Date().getTime() - (totalSeconds - secondsLeft) * 1000
-      );
-    }
-    setIsPaused(false);
-    isPausedRef.current = false;
-    setTimeout(tick, 1000);
-  }
+  setIsPaused(false);
+  isPausedRef.current = false;
+  rafIdRef.current = requestAnimationFrame(tick);
+}
 
   function pauseTimer() {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
     setIsPaused(true);
     isPausedRef.current = true;
-    startTimeRef.current = null;
+    if (startTimeRef.current !== null && endTimeRef.current !== null) {
+      const timeLeft = endTimeRef.current - Date.now();
+      endTimeRef.current = Date.now() + timeLeft
+    }
   }
 
-  useEffect(() => {
-    if (!isPaused) {
-      const interval = setInterval(tick, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [isPaused]);
 
-  useEffect(() => {
-    if (secondsLeft === 0 && !isPaused) {
-      audioRef.current.play();
-    }
-  }, [secondsLeft, isPaused]);
-
-  const handlePomodoroComplete = (type: string) => {
+  const handlePomodoroComplete = (type: 'work' | 'break') => {
     setPomodoroSessions((prev: any) => [...prev, type]);
   };
 
   function switchMode() {
-    const nextMode = modeRef.current === "work" ? "break" : "work";
+    const nextMode = modeRef.current === 'work' ? 'break' : 'work';
+    const nextSeconds = (nextMode === 'work' ? workMinutes : breakMinutes) * 60;
+
     setMode(nextMode);
     modeRef.current = nextMode;
-
-    const nextSeconds = (nextMode === "work" ? workMinutes : breakMinutes) * 60;
     setSecondsLeft(nextSeconds);
     secondsLeftRef.current = nextSeconds;
-    startTimeRef.current = new Date();
 
-    if (nextMode === "break") {
-      handlePomodoroComplete("work");
+    const now = Date.now();
+    startTimeRef.current = now;
+    endTimeRef.current = now + nextSeconds * 1000;
+
+    if (nextMode === 'break') {
+      handlePomodoroComplete('work');
     } else {
-      handlePomodoroComplete("break");
+      handlePomodoroComplete('break');
+    }
+
+    if (!isPausedRef.current) {
+      rafIdRef.current = requestAnimationFrame(tick);
     }
   }
 
   function initTimer() {
-    const initialSeconds = (mode === "work" ? workMinutes : breakMinutes) * 60;
+    const initialSeconds = (mode === 'work' ? workMinutes : breakMinutes) * 60;
     setSecondsLeft(initialSeconds);
     secondsLeftRef.current = initialSeconds;
-    startTimeRef.current = new Date();
+
+    const now = Date.now();
+    startTimeRef.current = now;
+    endTimeRef.current = now + initialSeconds * 1000;
   }
 
   useEffect(() => {
     initTimer();
   }, [showSettings, workMinutes, breakMinutes, mode]);
 
-  // useEffect(() => {
-  //   initTimer();
-  //   startTimeRef.current = new Date();
-  // }, [showSettings, workMinutes, breakMinutes]);
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, []);
 
-  const totalSeconds = mode === "work" ? workMinutes * 60 : breakMinutes * 60;
+  useEffect(() => {
+    if ('Notification' in window) {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const totalSeconds = (modeRef.current === "work" ? workMinutes : breakMinutes) * 60;
   const percantage = Math.round((secondsLeft / totalSeconds) * 100);
   const minutes = Math.floor(secondsLeft / 60);
   let seconds = secondsLeft % 60;
