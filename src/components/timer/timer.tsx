@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useRef } from "react";
+import React, { useContext, useState, useEffect, useRef, useCallback } from "react";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import PlayButton from "../play-button/play-button";
@@ -13,14 +13,8 @@ function Timer() {
     useContext(SettingsContext);
   const [isPaused, setIsPaused] = useState<boolean>(true);
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
-  const [mode, setMode] = useState<"work" | "break" | "pause">("work");
-  const [pomodoroSessions, setPomodoroSessions] = useState<
-    ("work" | "break")[]
-  >([]);
-
-  const startTimeRef = useRef<number | null>(null);
-  const endTimeRef = useRef<number | null>(null);
-  const rafIdRef = useRef<number | null>(null);
+  const [mode, setMode] = useState<"work" | "break">("work");
+  const [pomodoroSessions, setPomodoroSessions] = useState<("work" | "break")[]>([]);
 
   const audioRef = useRef(new Audio(process.env.PUBLIC_URL + "/alarm.mp3"));
 
@@ -28,54 +22,27 @@ function Timer() {
   const isPausedRef = useRef(isPaused);
   const modeRef = useRef(mode);
 
-  function tick() {
-    if (startTimeRef.current === null || endTimeRef.current === null) return;
-  
-    const now = Date.now();
-    const newSecondsLeft = Math.max(0, Math.round((endTimeRef.current - now) / 1000));
-  
-    if (newSecondsLeft !== secondsLeftRef.current) {
-      setSecondsLeft(newSecondsLeft);
-      secondsLeftRef.current = newSecondsLeft;
-    }
-  
-    if (newSecondsLeft > 0 && !isPausedRef.current) {
-      rafIdRef.current = requestAnimationFrame(tick);
-    } else if (newSecondsLeft === 0) {
-      audioRef.current.play();
-      switchMode();
-    }
-  }
+const tick = useCallback(() => {
+  secondsLeftRef.current--;
+  setSecondsLeft(secondsLeftRef.current);
+}, [])
   
 function startTimer() {
-  const now = Date.now();
-  startTimeRef.current = now;
-  endTimeRef.current = now + secondsLeftRef.current * 1000;
-
   setIsPaused(false);
   isPausedRef.current = false;
-  rafIdRef.current = requestAnimationFrame(tick);
 }
 
-  function pauseTimer() {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-    }
-    setIsPaused(true);
-    isPausedRef.current = true;
-    if (startTimeRef.current !== null && endTimeRef.current !== null) {
-      const timeLeft = endTimeRef.current - Date.now();
-      endTimeRef.current = Date.now() + timeLeft
-    }
-  }
+function pauseTimer() {
+  setIsPaused(true);
+  isPausedRef.current = true;
+}
 
-
-  const handlePomodoroComplete = (type: 'work' | 'break') => {
+  const handlePomodoroComplete = useCallback((type: 'work' | 'break') => {
     setPomodoroSessions((prev: any) => [...prev, type]);
-  };
+  },[]);
 
-  function switchMode() {
-    const nextMode = modeRef.current === 'work' ? 'break' : 'work';
+const switchMode = useCallback(() => {
+    const nextMode = mode === 'work' ? 'break' : 'work';
     const nextSeconds = (nextMode === 'work' ? workMinutes : breakMinutes) * 60;
 
     setMode(nextMode);
@@ -83,48 +50,61 @@ function startTimer() {
     setSecondsLeft(nextSeconds);
     secondsLeftRef.current = nextSeconds;
 
-    const now = Date.now();
-    startTimeRef.current = now;
-    endTimeRef.current = now + nextSeconds * 1000;
+    handlePomodoroComplete(mode)
 
-    if (nextMode === 'break') {
-      handlePomodoroComplete('work');
-    } else {
-      handlePomodoroComplete('break');
-    }
+    setIsPaused(true);
+    isPausedRef.current = true;
+  }, [workMinutes, breakMinutes, handlePomodoroComplete]);
 
-    if (!isPausedRef.current) {
-      rafIdRef.current = requestAnimationFrame(tick);
-    }
-  }
-
-  function initTimer() {
-    const initialSeconds = (mode === 'work' ? workMinutes : breakMinutes) * 60;
+const initTimer = useCallback(() => {
+    const initialSeconds = workMinutes * 60;
     setSecondsLeft(initialSeconds);
     secondsLeftRef.current = initialSeconds;
+    setMode('work');
+    modeRef.current = 'work';
+  }, [workMinutes]);
 
-    const now = Date.now();
-    startTimeRef.current = now;
-    endTimeRef.current = now + initialSeconds * 1000;
+  function sendNotification() {
+    console.log("Notification permission:", Notification.permission);
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification("Pomodoro Timer", {
+          body: "Time's up! Take a break. ⏰ ",
+          icon: "/public/tomato.png"
+        });
+      } catch (error) {
+        console.error("Error sending notification:", error);
+      }
+    } 
   }
 
   useEffect(() => {
     initTimer();
-  }, [showSettings, workMinutes, breakMinutes, mode]);
-
-  useEffect(() => {
-    return () => {
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-    };
-  }, []);
+  }, [showSettings, initTimer]);
 
   useEffect(() => {
     if ('Notification' in window) {
       Notification.requestPermission();
     }
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isPausedRef.current) {
+        return;
+      }
+      if (secondsLeftRef.current === 0) {
+        audioRef.current.play();
+        sendNotification();
+        switchMode();
+        return;
+      }
+      tick();
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [sendNotification, switchMode, tick]);
+
 
   const totalSeconds = (modeRef.current === "work" ? workMinutes : breakMinutes) * 60;
   const percantage = Math.round((secondsLeft / totalSeconds) * 100);

@@ -1,8 +1,7 @@
-import { useState } from "react";
+
 import style from "./style.module.css";
 import React from "react";
-// #ed4141 red
-// #40c463 green
+
 interface IProgress {
   sessions: Array<"work" | "break">;
 }

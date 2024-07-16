@@ -3,6 +3,7 @@ import style from "./settings.module.css";
 import ReactSlider from "react-slider";
 import SettingsContext from "../settings-context/SettingsContext";
 import BackButton from "../back-button/BackButton";
+import RequestNotificationButton from "../request-notofication-button/RequestNotificationButton";
 
 const Settings = () => {
   const {
@@ -13,6 +14,7 @@ const Settings = () => {
     showSettings,
     setShowSettings,
   } = useContext(SettingsContext);
+
   if (!showSettings) {
     return null;
   }
@@ -39,6 +41,7 @@ const Settings = () => {
         max={30}
       />
       <div className={style.back_button_container}>
+        <RequestNotificationButton />
         <BackButton onClick={() => setShowSettings(false)} />
       </div>
     </div>
