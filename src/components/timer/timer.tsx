@@ -14,7 +14,43 @@ function Timer() {
   const [isPaused, setIsPaused] = useState<boolean>(true);
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [mode, setMode] = useState<"work" | "break">("work");
-  const [pomodoroSessions, setPomodoroSessions] = useState<("work" | "break")[]>([]);
+
+const isToday = (someDate: Date) => {
+  const today = new Date()
+  return someDate.getDate() === today.getDate() && 
+    someDate.getMonth() === today.getMonth() &&
+    someDate.getFullYear() === today.getFullYear()
+}
+
+  const [pomodoroSessions, setPomodoroSessions] = useState<("work" | "break")[]>(() => {
+    const savedSessions = localStorage.getItem('pomodoroSessions');
+    if (savedSessions) {
+      const parsedSession = JSON.parse(savedSessions);
+      if (isToday(new Date(parsedSession.date))) {
+        return parsedSession.sessions;
+      }
+    }
+    return [];
+  })
+
+  const saveSessions = useCallback(() => {
+    const sessionData = {
+      date: new Date(),
+      sessions: pomodoroSessions
+    };
+    localStorage.setItem('pomodoroSessions', JSON.stringify(sessionData));
+  }, [pomodoroSessions])
+
+  const resetSessionsIfNewDay = useCallback(() => {
+    const savedSessions = localStorage.getItem('pomodoroSessions');
+    if (savedSessions) {
+      const parseSessions = JSON.parse(savedSessions);
+      if (!isToday(new Date(parseSessions.date))) {
+        setPomodoroSessions([]);
+        saveSessions();
+      }
+    }
+  }, [saveSessions]);
 
   const audioRef = useRef(new Audio(process.env.PUBLIC_URL + "/alarm.mp3"));
 
@@ -38,7 +74,10 @@ function pauseTimer() {
 }
 
   const handlePomodoroComplete = useCallback((type: 'work' | 'break') => {
-    setPomodoroSessions((prev: any) => [...prev, type]);
+    setPomodoroSessions(prev => {
+      const newSessions = [...prev, type];
+      return newSessions;
+    });
   },[]);
 
 const switchMode = useCallback(() => {
@@ -81,6 +120,16 @@ const initTimer = useCallback(() => {
       }
     } 
   }, [mode]);
+
+  useEffect(() => {
+    resetSessionsIfNewDay();
+    const interval = setInterval(resetSessionsIfNewDay, 3600000);
+    return () => clearInterval(interval);
+  }, [resetSessionsIfNewDay]);
+
+  useEffect(() => {
+    saveSessions();
+  }, [pomodoroSessions, saveSessions])
 
   useEffect(() => {
     initTimer();

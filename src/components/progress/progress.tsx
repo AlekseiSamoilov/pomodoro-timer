@@ -7,7 +7,7 @@ interface IProgress {
 }
 
 const Progress: React.FC<IProgress> = React.memo(({ sessions }) => {
-  const totalCells = 36;
+  const totalCells = 48;
   const getColor = (index: number) => {
     if (index < sessions.length) {
       return sessions[index] === "work" ? "#ed4141" : "#40c463";
