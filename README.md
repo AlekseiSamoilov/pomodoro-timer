@@ -19,7 +19,7 @@ A simple and effective Pomodoro Timer built with React and TypeScript to boost y
 
 ### Installation
 
-1. Clone the repository: git clone https: //github.com/your-username/pomodoro-timer.git
+1. Clone the repository: git clone https: //github.com/AlekseiSamoilov/pomodoro-timer.git
 2. Navigate to the project directory: cd pomodoro-timer
 3. Install dependencies: npm install
 
