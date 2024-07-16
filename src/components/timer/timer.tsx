@@ -54,7 +54,7 @@ const switchMode = useCallback(() => {
 
     setIsPaused(true);
     isPausedRef.current = true;
-  }, [workMinutes, breakMinutes, handlePomodoroComplete]);
+  }, [workMinutes, breakMinutes, handlePomodoroComplete, mode]);
 
 const initTimer = useCallback(() => {
     const initialSeconds = workMinutes * 60;
@@ -64,19 +64,23 @@ const initTimer = useCallback(() => {
     modeRef.current = 'work';
   }, [workMinutes]);
 
-  function sendNotification() {
-    console.log("Notification permission:", Notification.permission);
+  const sendNotification = useCallback(() => {
     if ("Notification" in window && Notification.permission === "granted") {
       try {
-        new Notification("Pomodoro Timer", {
-          body: "Time's up! Take a break. ⏰ ",
-          icon: "/public/tomato.png"
+        const notificationTitle = mode === 'work' ? 'Work Session Ended' : 'Break Time Over';
+        const notificationBody = mode === 'work'
+        ? "Time's up! Take a break. ⏰" 
+        : "Break's over! Time to focus. 💻" ;
+        
+        new Notification(notificationTitle, {
+          body: notificationBody,
+          icon: "/tomato.png"
         });
       } catch (error) {
         console.error("Error sending notification:", error);
       }
     } 
-  }
+  }, [mode]);
 
   useEffect(() => {
     initTimer();
@@ -103,7 +107,8 @@ const initTimer = useCallback(() => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [sendNotification, switchMode, tick]);
+
+  }, [switchMode, tick, mode, pomodoroSessions, sendNotification]);
 
 
   const totalSeconds = (modeRef.current === "work" ? workMinutes : breakMinutes) * 60;
@@ -111,6 +116,9 @@ const initTimer = useCallback(() => {
   const minutes = Math.floor(secondsLeft / 60);
   let seconds = secondsLeft % 60;
   let secondsFormatted = seconds < 10 ? `0${seconds}` : seconds;
+
+
+
 
   return (
     <div className={style.timer_container}>

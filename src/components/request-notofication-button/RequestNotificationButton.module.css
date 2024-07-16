@@ -1,0 +1,41 @@
+.button {
+    border: none;
+    width: 300px;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 20px;
+    line-height: 36px;
+    margin-bottom: 20px;
+    color: rgba(255,255,255,0.8);
+  }
+
+  .button:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+    border: 0.5px solid white;
+  }
+
+  .button:active {
+    background-color: #4aec8c;
+  }
+
+  .button_default {
+    background-color: rgba(255,255,255,.1);
+  }
+
+  .button_enabled {
+    background-color: #4aec8c;
+  }
+
+  .button_denied {
+    background-color: #f54e4e;
+    cursor: not-allowed;
+  }
+
+  .button:hover:not(:disabled) {
+    opacity: 0.8;
+  }
+
+  .button:disabled {
+    opacity: 0.6;
+  }

@@ -27,3 +27,7 @@
   margin: 0;
   text-transform: capitalize;
 }
+
+.back_button:active {
+  background-color: #f54e4e;
+}
