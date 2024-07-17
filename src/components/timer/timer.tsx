@@ -14,6 +14,9 @@ function Timer() {
   const [isPaused, setIsPaused] = useState<boolean>(true);
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [mode, setMode] = useState<"work" | "break">("work");
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const animationFrameId = useRef<number | null>(null);
 
 const isToday = (someDate: Date) => {
   const today = new Date()
@@ -58,19 +61,45 @@ const isToday = (someDate: Date) => {
   const isPausedRef = useRef(isPaused);
   const modeRef = useRef(mode);
 
-const tick = useCallback(() => {
-  secondsLeftRef.current--;
-  setSecondsLeft(secondsLeftRef.current);
-}, [])
+
+
+// const tick = useCallback(() => {
+//   secondsLeftRef.current--;
+//   setSecondsLeft(secondsLeftRef.current);
+// }, [])
   
+// function startTimer() {
+//   setIsPaused(false);
+//   isPausedRef.current = false;
+// }
+
 function startTimer() {
   setIsPaused(false);
   isPausedRef.current = false;
+  if (startTimeRef.current === null) {
+    const now = Date.now();
+    setStartTime(now);
+    startTimeRef.current = now;
+  }
+  animationFrameId.current = requestAnimationFrame(tick);
 }
+
+// function pauseTimer() {
+//   setIsPaused(true);
+//   isPausedRef.current = true;
+// }
 
 function pauseTimer() {
   setIsPaused(true);
   isPausedRef.current = true;
+  if (animationFrameId.current !== null) {
+    cancelAnimationFrame(animationFrameId.current);
+  }
+  if (startTimeRef.current !== null) {
+    const pausedTime = Date.now();
+    const elapsedTime = pausedTime - startTimeRef.current;
+    startTimeRef.current = pausedTime - elapsedTime;
+  }
 }
 
   const handlePomodoroComplete = useCallback((type: 'work' | 'break') => {
@@ -88,6 +117,8 @@ const switchMode = useCallback(() => {
     modeRef.current = nextMode;
     setSecondsLeft(nextSeconds);
     secondsLeftRef.current = nextSeconds;
+    setStartTime(null);
+    startTimeRef.current = null;
 
     handlePomodoroComplete(mode)
 
@@ -141,33 +172,101 @@ const initTimer = useCallback(() => {
     }
   }, []);
 
+  const totalSeconds = (modeRef.current === "work" ? workMinutes : breakMinutes) * 60;
+
+  const tick = useCallback(() => {
+    if (startTimeRef.current === null) return;
+
+    const currentTime = Date.now();
+    const elapsedSeconds = Math.floor((currentTime - startTimeRef.current) / 1000);
+    const newSecondsLeft = Math.max(0, totalSeconds - elapsedSeconds);
+
+    if (newSecondsLeft !== secondsLeftRef.current) {
+      setSecondsLeft(newSecondsLeft);
+      secondsLeftRef.current = newSecondsLeft;
+    }
+
+    if (newSecondsLeft > 0 && !isPausedRef.current) {
+      animationFrameId.current = requestAnimationFrame(tick);
+    } else if (newSecondsLeft === 0) {
+      audioRef.current.play();
+      sendNotification();
+      switchMode();
+    }
+  }, [totalSeconds, sendNotification, switchMode])
+
   useEffect(() => {
-    const interval = setInterval(() => {
+    let animationFrameId: number | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+  
+    const updateTimer = () => {
       if (isPausedRef.current) {
         return;
       }
-      if (secondsLeftRef.current === 0) {
+  
+      if (startTimeRef.current === null) return;
+  
+      const currentTime = Date.now();
+      const elapsedSeconds = Math.floor((currentTime - startTimeRef.current) / 1000);
+      const newSecondsLeft = Math.max(0, totalSeconds - elapsedSeconds);
+  
+      if (newSecondsLeft !== secondsLeftRef.current) {
+        setSecondsLeft(newSecondsLeft);
+        secondsLeftRef.current = newSecondsLeft;
+      }
+  
+      if (newSecondsLeft === 0) {
         audioRef.current.play();
         sendNotification();
         switchMode();
         return;
       }
-      tick();
-    }, 1000);
+  
+      // Используем setTimeout как запасной вариант
+      timeoutId = setTimeout(() => {
+        updateTimer();
+      }, 1000);
+  
+      // Используем requestAnimationFrame для более плавного обновления, когда вкладка активна
+      animationFrameId = requestAnimationFrame(updateTimer);
+    };
+  
+    updateTimer();
+  
+    return () => {
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [switchMode, totalSeconds, sendNotification, mode, pomodoroSessions]);
 
-    return () => clearInterval(interval);
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     if (isPausedRef.current) {
+  //       return;
+  //     }
+  //     if (secondsLeftRef.current === 0) {
+  //       audioRef.current.play();
+  //       sendNotification();
+  //       switchMode();
+  //       return;
+  //     }
+  //     tick();
+  //   }, 1000);
 
-  }, [switchMode, tick, mode, pomodoroSessions, sendNotification]);
+  //   return () => clearInterval(interval);
+
+  // }, [switchMode, tick, mode, pomodoroSessions, sendNotification]);
 
 
-  const totalSeconds = (modeRef.current === "work" ? workMinutes : breakMinutes) * 60;
+
   const percantage = Math.round((secondsLeft / totalSeconds) * 100);
   const minutes = Math.floor(secondsLeft / 60);
   let seconds = secondsLeft % 60;
   let secondsFormatted = seconds < 10 ? `0${seconds}` : seconds;
-
-
-
 
   return (
     <div className={style.timer_container}>
