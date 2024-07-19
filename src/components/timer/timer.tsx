@@ -7,6 +7,7 @@ import PauseButton from "../pause-button/pause-button";
 import SettingsButton from "../settings-button/settings-button";
 import SettingsContext from "../settings-context/SettingsContext";
 import Progress from "../progress/progress";
+import { start } from "repl";
 
 function Timer() {
   const { showSettings, setShowSettings, workMinutes, breakMinutes } = useContext(SettingsContext);
@@ -31,7 +32,8 @@ function Timer() {
     }
     return [];
   });
-
+  const startTimeRef = useRef<number | null>(null)
+  const remainingTimeRef = useRef<number>(0);
   const audioRef = useRef(new Audio(process.env.PUBLIC_URL + "/alarm.mp3"));
   const secondsLeftRef = useRef(secondsLeft);
   const isPausedRef = useRef(isPaused);
@@ -56,27 +58,24 @@ function Timer() {
     }
   }, []);
 
-  const tick = useCallback(() => {
-    secondsLeftRef.current--;
-    setSecondsLeft(secondsLeftRef.current);
-  }, []);
 
   const initTimer = useCallback(() => {
-    
     const initialSeconds = (modeRef.current === 'work' ? workMinutes : breakMinutes) * 60;
-    secondsLeftRef.current = initialSeconds;
+    remainingTimeRef.current = initialSeconds;
     setSecondsLeft(initialSeconds);
     setIsPaused(true);
     isPausedRef.current = true;
+    startTimeRef.current = null;
   }, [workMinutes, breakMinutes]);
 
   const switchMode = useCallback(() => {
-    setPomodoroSessions(prev => [...prev, mode]);
-    
-    const nextMode = mode === 'work' ? 'break' : 'work';
+    const currentMode = modeRef.current;
+    setPomodoroSessions(prev => [...prev, currentMode]);
+    const nextMode = currentMode === 'work' ? 'break' : 'work';
     setMode(nextMode);
+    modeRef.current = nextMode;
     initTimer();
-  }, [initTimer, mode]);
+  }, [initTimer]);
 
   const sendNotification = useCallback(() => {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -87,38 +86,65 @@ function Timer() {
     }
   }, []);
 
+  const tick = useCallback(() => {
+    if (isPausedRef.current) return;
+    
+    if (startTimeRef.current === null) {
+      startTimeRef.current = Date.now();
+    }
+    
+    const currentTime = Date.now();
+    const elapsedTime = Math.floor((currentTime - startTimeRef.current) / 1000);
+    const newRemainingTime = Math.max(remainingTimeRef.current - elapsedTime, 0);
+    
+    setSecondsLeft(newRemainingTime);
+
+    if (newRemainingTime === 0) {
+      audioRef.current.play();
+      sendNotification();
+      switchMode();
+    }
+  }, [sendNotification, switchMode]);
+
   function startTimer() {
     setIsPaused(false);
     isPausedRef.current = false;
-    updateServiceWorker(secondsLeftRef.current, modeRef.current);
+    startTimeRef.current = Date.now();
+    updateServiceWorker(remainingTimeRef.current, modeRef.current);
   }
 
   function pauseTimer() {
     setIsPaused(true);
     isPausedRef.current = true;
+    if (startTimeRef.current !== null) {
+      const elapsedTime = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      remainingTimeRef.current = Math.max(remainingTimeRef.current - elapsedTime, 0);
+      startTimeRef.current = null;
+    }
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'CANCEL_TIMER' });
     }
   }
 
   useEffect(() => {
+    if (isPausedRef.current) {
+      initTimer();
+    }
+  }, [workMinutes, breakMinutes, initTimer]);
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
     initTimer();
 
     const interval = setInterval(() => {
-      if (isPausedRef.current) {
-        return;
-      }
-      if (secondsLeftRef.current === 0) {
-        audioRef.current.play();
-        sendNotification();
-        switchMode();
-        return;
-      }
       tick();
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [initTimer, sendNotification, switchMode, tick]);
+  }, [initTimer, tick]);
 
   useEffect(() => {
     savePomodoroSessions();
@@ -133,12 +159,12 @@ function Timer() {
       }
     };
 
-    const interval = setInterval(checkDate, 60000); // Проверяем каждую минуту
+    const interval = setInterval(checkDate, 60000); 
 
     return () => clearInterval(interval);
   }, [savePomodoroSessions]);
 
-  const totalSeconds = (modeRef.current === "work" ? workMinutes : breakMinutes) * 60;
+  const totalSeconds = modeRef.current === "work" ? workMinutes * 60 : breakMinutes * 60;
   const percentage = Math.round((secondsLeft / totalSeconds) * 100);
 
   const minutes = Math.floor(secondsLeft / 60);
@@ -152,7 +178,7 @@ function Timer() {
         text={`${minutes}:${secondsFormatted}`}
         styles={buildStyles({
           textColor: "#fff",
-          pathColor: mode === "work" ? "#ed4141" : "#40c463",
+          pathColor: modeRef.current === "work" ? "#ed4141" : "#40c463",
           trailColor: "rgba(255,255,255,.2)",
         })}
       />
