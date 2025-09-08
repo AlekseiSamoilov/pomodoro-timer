@@ -4,6 +4,7 @@ import "react-circular-progressbar/dist/styles.css";
 import PlayButton from "../play-button/play-button";
 import style from "./timer.module.css";
 import PauseButton from "../pause-button/pause-button";
+import SkipButton from "../skip-button/skip-button";
 import SettingsButton from "../settings-button/settings-button";
 import SettingsContext from "../settings-context/SettingsContext";
 import Progress from "../progress/progress";
@@ -17,7 +18,7 @@ function Timer() {
 
   const isToday = (someDate: Date): boolean => {
     const today = new Date()
-    return someDate.getDate() === today.getDate() && 
+    return someDate.getDate() === today.getDate() &&
       someDate.getMonth() === today.getMonth() &&
       someDate.getFullYear() === today.getFullYear()
   }
@@ -88,15 +89,15 @@ function Timer() {
 
   const tick = useCallback(() => {
     if (isPausedRef.current) return;
-    
+
     if (startTimeRef.current === null) {
       startTimeRef.current = Date.now();
     }
-    
+
     const currentTime = Date.now();
     const elapsedTime = Math.floor((currentTime - startTimeRef.current) / 1000);
     const newRemainingTime = Math.max(remainingTimeRef.current - elapsedTime, 0);
-    
+
     setSecondsLeft(newRemainingTime);
 
     if (newRemainingTime === 0) {
@@ -124,6 +125,25 @@ function Timer() {
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'CANCEL_TIMER' });
     }
+  }
+
+  function skipSession() {
+    // Pause timer if running
+    if (!isPausedRef.current) {
+      pauseTimer();
+    }
+    
+    // Add current session to completed sessions
+    const currentMode = modeRef.current;
+    setPomodoroSessions(prev => [...prev, currentMode]);
+    
+    // Switch to next mode
+    const nextMode = currentMode === 'work' ? 'break' : 'work';
+    setMode(nextMode);
+    modeRef.current = nextMode;
+    
+    // Initialize timer for next session
+    initTimer();
   }
 
   useEffect(() => {
@@ -159,7 +179,7 @@ function Timer() {
       }
     };
 
-    const interval = setInterval(checkDate, 60000); 
+    const interval = setInterval(checkDate, 60000);
 
     return () => clearInterval(interval);
   }, [savePomodoroSessions]);
@@ -188,6 +208,7 @@ function Timer() {
         ) : (
           <PauseButton onClick={pauseTimer} />
         )}
+        <SkipButton onClick={skipSession} />
       </div>
       <Progress sessions={pomodoroSessions} />
       <div className={style.settings_button_container}>

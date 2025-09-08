@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './components/app/App.tsx';
 import reportWebVitals from './reportWebVitals';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -11,16 +12,7 @@ root.render(
   </React.StrictMode>
 );
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(registration => {
-        console.log('Service Worker registered successfully:', registration.scope);
-      })
-      .catch(error => {
-        console.log('Service Worker registration failed:', error);
-      });
-  });
-}
+// Register service worker for PWA functionality
+serviceWorkerRegistration.register();
 
 reportWebVitals();

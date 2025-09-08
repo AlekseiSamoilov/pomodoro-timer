@@ -1,0 +1,15 @@
+.skip_button {
+    background-color: transparent;
+    color: rgba(255,255,255,0.8);
+    border: none;
+    display: inline-block;
+    width: 80px;
+    animation: pulse 2s infinite;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+  }
+  .skip_button:hover {
+    animation: none;
+    transform: scale(1.2);
+  }
+
