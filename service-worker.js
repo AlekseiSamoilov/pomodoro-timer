@@ -1,39 +1,63 @@
-/**
- * Welcome to your Workbox-powered service worker!
- *
- * You'll need to register this file in your web app and you should
- * disable HTTP caching for this file too.
- * See https://goo.gl/nhQhGp
- *
- * The rest of the code is auto-generated. Please don't update this file
- * directly; instead, make changes to your Workbox build configuration
- * and re-run your build process.
- * See https://goo.gl/2aRDsh
- */
+// Cache name
+const CACHE_NAME = 'pomodoro-timer-v1';
 
-importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
+// Assets to cache
+const urlsToCache = [
+  '/',
+  '/static/js/bundle.js',
+  '/static/css/main.css',
+  '/manifest.json',
+  '/tomato.png',
+  '/alarm.mp3'
+];
 
-importScripts(
-  "/pomodoro-timer/precache-manifest.89d80c3d5645045085200fa72edded43.js"
-);
+let timerEndTime = null;
+let timerMode = null;
 
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+// Install event - cache assets
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        return cache.addAll(urlsToCache);
+      })
+  );
 });
 
-workbox.core.clientsClaim();
+// Fetch event - serve from cache
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        // Return cached version or fetch from network
+        return response || fetch(event.request);
+      })
+  );
+});
 
-/**
- * The workboxSW.precacheAndRoute() method efficiently caches and responds to
- * requests for URLs in the manifest.
- * See https://goo.gl/S9QRab
- */
-self.__precacheManifest = [].concat(self.__precacheManifest || []);
-workbox.precaching.precacheAndRoute(self.__precacheManifest, {});
+// Activate event - clean old caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
 
-workbox.routing.registerNavigationRoute(workbox.precaching.getCacheKeyForURL("/pomodoro-timer/index.html"), {
-  
-  blacklist: [/^\/_/,/\/[^/]+\.[^/]+$/],
+// Timer functionality
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SET_TIMER') {
+        timerEndTime = event.data.endTime;
+        timerMode = event.data.mode;
+        setTimer();
+    } else if (event.data && event.data.type === 'CANCEL_TIMER') {
+        timerEndTime = null;
+        timerMode = null;
+    }
 });
